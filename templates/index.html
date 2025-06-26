@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Shitify Mini Player</title>
+<style>
+  body {
+    background-color: #121212;
+    color: white;
+    font-family: Arial, sans-serif;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    margin: 0;
+  }
+
+  .player {
+    background-color: #282828;
+    border-radius: 8px;
+    padding: 16px;
+    width: 300px;
+    box-sizing: border-box;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.7);
+    user-select: none;
+  }
+
+  .song-title {
+    font-weight: bold;
+    font-size: 1.2em;
+    margin-bottom: 10px;
+    overflow: hidden;
+    white-space: nowrap;
+    position: relative;
+  }
+
+  .song-title::after {
+    content: '';
+    position: absolute;
+    right: 0;
+    top: 0;
+    height: 100%;
+    width: 20px;
+    background: linear-gradient(to left, #282828, transparent);
+  }
+
+  .song-title span {
+    display: inline-block;
+    padding-left: 100%;
+    animation: scroll-text 10s linear infinite;
+  }
+
+  @keyframes scroll-text {
+    0% {
+      transform: translateX(0);
+    }
+    100% {
+      transform: translateX(-100%);
+    }
+  }
+
+  .controls {
+    display: flex;
+    justify-content: center;
+    gap: 20px;
+    margin: 10px 0;
+  }
+
+  button {
+    background: none;
+    border: none;
+    color: white;
+    font-size: 1.4em;
+    cursor: pointer;
+    transition: color 0.2s ease;
+  }
+
+  button:hover {
+    color: #1db954;
+  }
+
+#progress-container {
+  background: #404040;
+  height: 6px;
+  border-radius: 6px;
+  cursor: pointer;
+  position: relative;
+}
+
+#progress {
+  background: #1db954;
+  height: 6px;
+  border-radius: 3px;
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 0%;
+}
+
+#progress-thumb {
+  position: absolute;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 12px;
+  height: 12px;
+  background: #1db95400;
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+
+  .time {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.8em;
+    color: #b3b3b3;
+    margin-top: 6px;
+    user-select: none;
+  }
+</style>
+
+</head>
+<body>
+
+<div class="player">
+  <div class="song-title" id="song-title">Loading songs...</div>
+
+  <audio id="audio"></audio>
+
+  <div id="progress-container">
+    <div id="progress"><div id="progress-thumb"></div></div>
+  </div>
+  <div class="time">
+    <span id="current-time">0:00</span>
+    <span id="duration">0:00</span>
+  </div>
+
+  <div class="controls">
+    <button id="prev-btn" title="Previous">&#9664;&#9664;</button>
+    <button id="play-pause-btn" title="Play/Pause">&#9654;</button>
+    <button id="next-btn" title="Next">&#9654;&#9654;</button>
+  </div>
+</div>
+
+<script>
+  const audio = document.getElementById('audio');
+  const songTitle = document.getElementById('song-title');
+  const playPauseBtn = document.getElementById('play-pause-btn');
+  const prevBtn = document.getElementById('prev-btn');
+  const nextBtn = document.getElementById('next-btn');
+  const progressContainer = document.getElementById('progress-container');
+  const progress = document.getElementById('progress');
+  const progressThumb = document.getElementById('progress-thumb');
+  const currentTimeEl = document.getElementById('current-time');
+  const durationEl = document.getElementById('duration');
+
+  let playlist = [];
+  let currentIndex = 0;
+  let isPlaying = false;
+
+  function formatTime(seconds) {
+    const min = Math.floor(seconds / 60);
+    const sec = Math.floor(seconds % 60);
+    return min + ':' + (sec < 10 ? '0' + sec : sec);
+  }
+
+  function loadSong(index) {
+    if(playlist.length === 0) return;
+    if(index < 0) index = playlist.length -1;
+    if(index >= playlist.length) index = 0;
+    currentIndex = index;
+    const fileName = playlist[currentIndex];
+    const cleanName = fileName.replace(/\.mp3$/i, '');
+    if (cleanName.length > 22) {
+      songTitle.innerHTML = `<span>${cleanName}</span>`;
+    } else {
+      songTitle.textContent = cleanName;
+    }
+    
+    audio.src = '/songs/' + encodeURIComponent(fileName);
+  }
+
+  function playSong() {
+    audio.play();
+    isPlaying = true;
+    playPauseBtn.textContent = '❚❚';
+  }
+
+  function pauseSong() {
+    audio.pause();
+    isPlaying = false;
+    playPauseBtn.textContent = '▶';
+  }
+
+  function togglePlayPause() {
+    if(isPlaying) {
+      pauseSong();
+    } else {
+      playSong();
+    }
+  }
+
+  playPauseBtn.addEventListener('click', togglePlayPause);
+
+  prevBtn.addEventListener('click', () => {
+    loadSong(currentIndex - 1);
+    if(isPlaying) audio.play();
+  });
+
+  nextBtn.addEventListener('click', () => {
+    loadSong(currentIndex + 1);
+    if(isPlaying) audio.play();
+  });
+
+  audio.addEventListener('ended', () => {
+    loadSong(currentIndex + 1);
+    audio.play();
+  });
+
+  audio.addEventListener('timeupdate', () => {
+    if(audio.duration) {
+      const percent = (audio.currentTime / audio.duration) * 100;
+      progress.style.width = percent + '%';
+      progressThumb.style.left = percent + '%';
+      currentTimeEl.textContent = formatTime(audio.currentTime);
+      durationEl.textContent = formatTime(audio.duration);
+    }
+  });
+
+  progressContainer.addEventListener('click', (e) => {
+    const rect = progressContainer.getBoundingClientRect();
+    const clickX = Math.max(0, Math.min(e.clientX - rect.left, rect.width));
+  
+    const newTime = (clickX / rect.width) * audio.duration;
+    audio.currentTime = newTime;
+  });
+
+  // Fetch song list from backend
+  fetch('/songs_list')
+    .then(res => res.json())
+    .then(files => {
+      playlist = files;
+      if(playlist.length > 0) {
+        loadSong(0);
+      } else {
+        songTitle.textContent = 'No songs found';
+      }
+    })
+    .catch(err => {
+      songTitle.textContent = 'Error loading songs';
+      console.error(err);
+    });
+</script>
+
+</body>
+</html>
+
